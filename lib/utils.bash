@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# TODO: Ensure this is the correct GitHub homepage where releases can be downloaded for hyperfine.
 GH_REPO="https://github.com/sharkdp/hyperfine"
 TOOL_NAME="hyperfine"
 TOOL_TEST="hyperfine --help"
@@ -31,20 +30,31 @@ list_github_tags() {
 }
 
 list_all_versions() {
-  # TODO: Adapt this. By default we simply list the tag names from GitHub releases.
-  # Change this function if hyperfine has other means of determining installable versions.
   list_github_tags
 }
 
-download_release() {
-  local version filename url
-  version="$1"
-  filename="$2"
+get_platform() {
+  local platform="$(uname)"
+  echo -n "${platform,,}"
+}
 
-  # TODO: Adapt the release URL convention for hyperfine
-  url="$GH_REPO/archive/v${version}.tar.gz"
+get_arch() {
+  local arch="$(uname -m)"
+  echo -n "${arch,,}"
+}
+
+download_release() {
+  local version="$1"
+  local filename="$2"
+  local platform="$(get_platform)"
+  local arch="$(get_arch)"
+
+  # TODO: is it possible to detect if system is using musl?
+  local url="$GH_REPO/releases/download/v${version}/hyperfine-v${version}-${arch}-unknown-${platform}-gnu.tar.gz"
 
   echo "* Downloading $TOOL_NAME release $version..."
+
+  # TODO: if it fails, show a link to the hyperfine release page
   curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
 }
 
@@ -58,13 +68,13 @@ install_version() {
   fi
 
   (
-    mkdir -p "$install_path"
-    cp -r "$ASDF_DOWNLOAD_PATH"/* "$install_path"
-
-    # TODO: Asert hyperfine executable exists.
     local tool_cmd
     tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
-    test -x "$install_path/bin/$tool_cmd" || fail "Expected $install_path/bin/$tool_cmd to be executable."
+
+    mkdir -p "$install_path"
+    cp -r "$ASDF_DOWNLOAD_PATH/$tool_cmd" "$install_path"
+
+    test -x "$install_path/$tool_cmd" || fail "Expected $install_path/$tool_cmd to be executable."
 
     echo "$TOOL_NAME $version installation was successful!"
   ) || (
